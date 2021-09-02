@@ -14,11 +14,12 @@ Expected time complexity:
 """
 #!/usr/bin/env python
 
+import sys
 import argparse
 import csv
 from math import sqrt
 
-class Salesman():
+class Salesmen():
     def __init__(self, start):
         self.path = [start]
         self.curr = start
@@ -51,9 +52,13 @@ class Salesman():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input')
+    parser.add_argument('--input', required=True)
     parser.add_argument('--num-salesmen', default=1, type=int)
     args = parser.parse_args()
+
+    if not args.num_salesmen in [1, 2]:
+        print("Wrong number of salesmens")
+        sys.exit(-1)
 
     print("Read from " + args.input)
     with open(args.input, newline='') as csvfile:
@@ -69,8 +74,9 @@ if __name__ == '__main__':
         num_edges = len(data)
         num_vertexes = len(vertexes)
 
-        salesman0 = Salesman(data[0][0])
-        salesman1 = Salesman(data[0][0])
+        salesmen0 = Salesmen(data[0][0])
+        if args.num_salesmen == 2:
+            salesmen1 = Salesmen(data[0][0])
 
         # quick sort of array O(e*log(e))
         def get_weight(edge):
@@ -83,17 +89,20 @@ if __name__ == '__main__':
         while len(vertexes) > 1:
             # in case of using C++ std::list use iterator instead i (access and remove by iterator - O(1))
             is_skipped = False
-            is_skipped = salesman0.check_edge(i, data, vertexes)
-            is_skipped = salesman1.check_edge(i, data, vertexes)
+            is_skipped = salesmen0.check_edge(i, data, vertexes)
+            if args.num_salesmen == 2 and is_skipped:
+                is_skipped = salesmen1.check_edge(i, data, vertexes)
             if is_skipped:
                 i += 1
-            if i == len(data):
+            else:
                 i = 0
 
-        print(str(salesman0.path) + ": " + str(salesman0.weight))
-        print(str(salesman1.path) + ": " + str(salesman1.weight))
+        print(str(salesmen0.path) + ": " + str(salesmen0.weight))
+        if args.num_salesmen == 2:
+            print(str(salesmen1.path) + ": " + str(salesmen1.weight))
         with open("result.csv", "w", newline='') as csvfile:
             writer = csv.writer(csvfile, delimiter=',')
-            writer.writerow(salesman0.path)
-            writer.writerow(salesman1.path)
+            writer.writerow(salesmen0.path)
+            if args.num_salesmen == 2:
+                writer.writerow(salesmen1.path)
 
