@@ -1,0 +1,35 @@
+1. media_sdk (intel) ~ 5 years: library for quick encode/decode/process video - https://github.com/Intel-Media-SDK/MediaSDK
+     worked on bug fix (hang, corruption, performance. memory leak), enable new feature (like video wall), directly communicate with stack holders try to solve issues with respect actual resources.
+     support operation systems: windows, linux, android
+     main languages: C, C++(11), perl, C#
+     technologies: intel amplifies (profiler), gdb, VS 2017
+   auto optimization framework based on halide ~ 2 years - https://github.com/halide/Halide
+     enable internal features
+     working on improvement performance of algorithm written on halide, including analize LLVM IR, GPU memory access, .... Enabled special optimization on level of generation IR.
+     develop auto otimizaton tools based on OpenTuner(https://github.com/jansel/opentuner) and auto schedule plugin
+     main languages: C, C++(11), Python, OpenCL
+2. https://github.com/akokoshn/interviews/tree/master/company/freq_dict
+3. Git (> 6 years), once have been used SVN.
+4. Linux is the main build system (target - android, build on Linux), but on work desctop - windows.
+   familiar with ssh (just main commands), vim (vi), gcc (also use clang), some experince with gbd
+5. Not so much experience: just use in projects like OpenTuner (see github), and some internall small projects - only simpl cases (connect add record or select).
+   Used MySQL, Mongo(once more 3 years ago)
+   Your select ask "id" and "price" from table goods for all records with "category_id" = 123
+6. Python, PHP, perl, bash.
+   Would like resolve task with using python
+   Has an experince in enabling build/deploy system on python, also works on internal version of OpenTuner(see github)
+7. Small experince web developing:
+       simple site PHP with local apach (registry/login)
+       HTML5 games/tools (javascript)
+8. media_sdk(see github):
+       > 2000000 lines code
+       support windows, linux, android
+       includes dynamic libraryes, exacutable tools, VS integration plugin, windows installer
+       team > 100 peoples (only developers)
+9. Have AI cources in university. Now communicate with AI team (improve sub algorithms, like convalution).
+   Have general understanding how it works, requirments for learn data set, design of NN. Alo have some experience with tools like pytorch.
+   Classifier produce discret values (like 1 or 2), regressor - continuos value (float in [0,1] for example). In both cases can be used generally same NN excluding the latest layer.
+10. avito.ru -> proxy -> xxx.xxx.xxx.xxx -> load html page ->process user requests (PHP post/get for example)
+11. Optimization of OpenCL memory access: merge loads, sliding window
+12. a. C/C++(11), python
+    b. C/C++(11,17,20), C#, Java, PHP, javascript, Python
