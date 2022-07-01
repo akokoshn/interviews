@@ -40,14 +40,16 @@ public:
 
         bool need_new_begin = true;
         if (need_prev_begin) {
-            if (prev_begin.second == val)
+            if (prev_begin.second == val) {
                 need_new_begin = false;
+	    }
         } else {
             if (it_begin != m_map.begin()) {
                 typename std::map<K,V>::const_iterator it = it_begin;
                 --it;
-                if (it->second == val)
+                if (it->second == val) {
                     need_prev_begin = false;
+		}
             }
         }
 
@@ -59,22 +61,21 @@ public:
                    (!need_new_begin && it_end!=m_map.end() && it_end->second == prev_begin.second)) {
                 m_map.erase(it_end);
         }
-
-	    m_map.erase(it_begin, it_end);
-		it_begin = it_end;
+        m_map.erase(it_begin, it_end);
+	it_begin = it_end;
 
         // restore prev
      	if (need_prev_begin) {
-		    it_begin = m_map.insert(it_begin, prev_begin);
-		}
-		// insert new
-		if (need_new_begin) {
-			m_map.insert(it_begin, std::make_pair(keyBegin, val));
-		}
-		// restore next
-		if (need_new_end) {
-		    m_map.insert(it_begin, new_end);
-		}
+	    it_begin = m_map.insert(it_begin, prev_begin);
+	}
+	// insert new
+	if (need_new_begin) {
+		m_map.insert(it_begin, std::make_pair(keyBegin, val));
+	}
+	// restore next
+	if (need_new_end) {
+	    m_map.insert(it_begin, new_end);
+	}
     }
     V const& operator[](K const& key) const {
         typename std::map<K, V>::const_iterator it = m_map.upper_bound(key);
