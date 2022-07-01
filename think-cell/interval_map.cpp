@@ -13,20 +13,68 @@ public:
         if (!(keyBegin < keyEnd)) {
             return;
         }
-        typename std::map<K, V>::iterator start_it = m_map.lower_bound(keyBegin);// time = O(log(n))
-        while (start_it != m_map.end() && start_it->first < keyEnd) {// an interval inside new interval, time = O(n*log(n))
-            m_map.erase(start_it);
-            start_it = m_map.lower_bound(keyBegin);
-        }
-        // time = 2*O(log(n))
-        if (start_it != m_map.end() && keyBegin < start_it->first && start_it->second == m_valBegin) {// insert new interval inside another
-            start_it--;
-            m_map.insert(std::pair<K, V>(keyEnd, start_it->second));
-        } else {
-            m_map.insert(std::pair<K, V>(keyEnd, m_valBegin));
-        }
-        m_map.insert(std::pair<K, V>(keyBegin, val));
 
+		std::pair<K,V> prev_begin;
+    	std::pair<K,V> new_end;
+		bool need_prev_begin = false;
+	    bool need_new_end = false;
+
+        typename std::map<K,V>::iterator it_begin;
+        it_begin = m_map.lower_bound(keyBegin);
+        if (it_begin != m_map.end() && keyBegin < it_begin->first) {
+            if (it_begin != m_map.begin()) {
+                need_prev_begin = true;
+                --it_begin;
+                prev_begin = std::make_pair(it_begin->first, it_begin->second);
+            }
+        }
+
+        typename std::map<K,V>::iterator it_end;
+        it_end = m_map.lower_bound(keyEnd);
+        if (it_end != m_map.end() && keyEnd < it_end->first) {
+            need_new_end = true;
+            typename std::map<K,V>::const_iterator it = it_end;
+            --it;
+            new_end = std::make_pair(keyEnd, it->second);
+        }
+
+        bool need_new_begin = true;
+        if (need_prev_begin) {
+            if (prev_begin.second == val)
+                need_new_begin = false;
+        } else {
+            if (it_begin != m_map.begin()) {
+                typename std::map<K,V>::const_iterator it = it_begin;
+                --it;
+                if (it->second == val)
+                    need_prev_begin = false;
+            }
+        }
+
+
+        if (need_new_end) {
+            if ((need_new_begin && new_end.second == val) || (!need_new_begin && new_end.second == prev_begin.second) )
+                need_new_end = false;
+        } else if ((need_new_begin && it_end!=m_map.end() && it_end->second == val) ||
+                   (!need_new_begin && it_end!=m_map.end() && it_end->second == prev_begin.second)) {
+                m_map.erase(it_end);
+        }
+
+	    m_map.erase(it_begin, it_end);
+		it_begin = it_end;
+
+        // restore prev
+     	if (need_prev_begin) {
+		    it_begin = m_map.insert(it_begin, prev_begin);
+		}
+		// insert new
+		if (need_new_begin) {
+			m_map.insert(it_begin, std::make_pair(keyBegin, val));
+		}
+		// restore next
+		if (need_new_end) {
+		    m_map.insert(it_begin, new_end);
+		}
     }
     V const& operator[](K const& key) const {
         typename std::map<K, V>::const_iterator it = m_map.upper_bound(key);
