@@ -20,11 +20,17 @@ All system calls: https://thevivekpandey.github.io/posts/2017-09-25-linux-system
 
 ## 4. Pipe
 
+Unidirection (FIFO) access.
+
 See pipe.c
 
 ## 5. Socket
 
+Bidirection access, network oriented.
+
 See socket.c
 
 ## 6. Network protocols (TCP/IP, HTML, ...)
+
+## 7. Concurent read/write
 
