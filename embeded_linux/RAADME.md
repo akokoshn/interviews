@@ -42,3 +42,9 @@ See [socket.c](https://github.com/akokoshn/interviews/blob/master/embeded_linux/
 
 **8. Concurent read/write.**
 
+**9. Possible problem with `kill(pid)`**
+
+The required process may be shinished when called `kill` and `pid` reused for another, as result terminaate wrong process.
+
+**10. Thread synchronization: mutex, semaphore**
+
