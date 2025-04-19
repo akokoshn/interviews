@@ -95,4 +95,23 @@ static obj* get() {
 };
 ```
 # Structural
+## Adapter
+## Bridge
+## Composite
+## Decarator
+Extend behavior with using wrapper
+## Facade
+Simplify interface of comples object(s)
+## Flyweight
+## Proxy
 # Behavior
+## Chain of responsibility
+## Command
+## Iterator
+## Mediator
+## Memento
+## Observer
+## State
+## Strategy
+## Template method
+## Visitor
