@@ -1,3 +1,4 @@
+https://refactoring.guru/design-patterns/catalog
 # Creation
 ## Factory method
 Method of super class for create object, which may be overided in the child classes.
