@@ -1,5 +1,5 @@
-## Creation
-# Factory method
+# Creation
+## Factory method
 Method of super class for create object, which may be overided in the child classes.
 ```
 class magicBox {
@@ -14,7 +14,7 @@ coin* createCoin() override {
 }
 };
 ```
-# Abstract factory
+## Abstract factory
 Abstract class provides methods for create one or more types of objects, the concrete implementation allow create concrete object for each type
 ```
 class furnitureFactory {
@@ -30,7 +30,7 @@ chair* createChair() override {
 }
 };
 ```
-# Builder
+## Builder
 Build complex object step by step. Different kinds of object can be built with using same steps.
 ```
 class builder {
@@ -59,7 +59,7 @@ product* fullBuild() {
 }
 };
 ```
-# Prototype
+## Prototype
 Abstract class which provides `clone` method for correct copy each concrete implementation.
 No need to change common code.
 ```
@@ -77,7 +77,7 @@ shape* clone() {
 }
 };
 ```
-# Singleton
+## Singleton
 Guaranty creation exactly one instance of object.
 ```
 class singleton {
@@ -94,5 +94,5 @@ static obj* get() {
 }
 };
 ```
-## Structural
-## Behavior
+# Structural
+# Behavior
