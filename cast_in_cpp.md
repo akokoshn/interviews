@@ -60,5 +60,9 @@ int main()
   return 0;
 }
 ```
+Downscale casting may leads undefined behavior.
 # dynamic_cast
+Works for both down/up scale casting, but works only for objects with at least one virtual method,
+Returns `nullptr` in case of invalid casting.
+Invalid cast to reference leads exception `bad_cast`
 # reinterpret_cast`
