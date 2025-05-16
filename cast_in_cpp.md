@@ -27,6 +27,7 @@ int main(void) {
 # static_cast
 Compile time type convertion.
 Can't convert pointers to the different types, even they have same size.
+Except casting to/from `void*`.
 ```
 char c = 'A';
 uint8_t *p = static_cast<uint8_t*>(&c); // compile error: invalid convesion
@@ -62,7 +63,42 @@ int main()
 ```
 Downscale casting may leads undefined behavior.
 # dynamic_cast
-Works for both down/up scale casting, but works only for objects with at least one virtual method,
+Works for both down/up scale casting, but only for objects with at least one virtual method,
 Returns `nullptr` in case of invalid casting.
 Invalid cast to reference leads exception `bad_cast`
 # reinterpret_cast`
+Convert pointer to type to pointer of another type.
+`T*` <=> `U*`.
+No check if casting actually valid.
+An interesting example:
+```
+class A {
+public:
+    void fun_a()
+    {
+        cout << " In class A\n";
+    }
+};
+
+class B {
+public:
+    void fun_b()
+    {
+        cout << " In class B\n";
+    }
+};
+
+int main()
+{
+    // creating object of class B
+    B* x = new B();
+
+    // converting the pointer to object
+    // referenced of class B to class A
+    A* new_a = reinterpret_cast<A*>(x);
+
+    // accessing the function of class A
+    new_a->fun_a();
+    return 0;
+}
+```
