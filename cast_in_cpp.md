@@ -33,6 +33,7 @@ char c = 'A';
 uint8_t *p = static_cast<uint8_t*>(&c); // compile error: invalid convesion
 ```
 Also can be used for upscale casting, but only in case of public inherit.
+Downscale casting may leads undefined behavior.
 ```
 class Base 
 {};
@@ -61,7 +62,17 @@ int main()
   return 0;
 }
 ```
-Downscale casting may leads undefined behavior.
+Another case is casting r-value teference from/to l-value.
+```
+int a = 10;
+int& l = a;
+int&&r = static_cast<int&&>(l);
+
+int&& rr = 11;
+int& ll = static_cast<int&>(rr);
+
+int& lll = static_cast<int&>(12); // compile error
+```
 # dynamic_cast
 Works for both down/up scale casting, but only for objects with at least one virtual method,
 Returns `nullptr` in case of invalid casting.
