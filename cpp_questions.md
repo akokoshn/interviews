@@ -110,3 +110,200 @@ int main()
 ```
 **`Result: 1000`**
 
+## 3
+
+```
+struct E
+{
+  E() { std::cout << "1"; }
+  E(const E&) { std::cout << "2"; }
+  ~E() { std::cout << "3"; }
+};
+
+E f()
+{
+  return E();
+}
+
+int main()
+{
+  f();
+}
+```
+**`Result: 13`**
+
+Result is not used, so no call copy constructor.
+
+# Virtual methods
+## 1
+```
+class A {
+public:
+  virtual void f() { std::cout << "A"; }
+};
+
+class B : public A {
+public:
+  void f() { std::cout << "B"; }
+};
+
+void g(A a) { a.f(); }
+
+int main() {
+  B b;
+  g(b);
+}
+```
+**`Result: A`**
+
+`g()` accepts new temporary object of A (missed original pointer to the v-table)
+
+# Template
+## 1
+```
+template <typename T>
+struct A {
+    static_assert(T::value);
+};
+
+struct B {
+    static constexpr bool value = false;
+};
+
+int main() {
+    A<B>* a;
+    std::cout << 1;
+}
+```
+**`Result: 1`**
+
+No created instance of A.
+
+## 2
+```
+template<typename T>
+void f(T) {
+    std::cout << 1;
+}
+
+template<>
+void f(int) {
+    std::cout << 2;
+}
+
+void f(int) {
+    std::cout << 3;
+}
+
+int main() {
+    f(0.0);
+    f(0);
+    f<>(0);
+}
+```
+**`Result: 132`**
+
+# Scope
+## 1
+```
+namespace x {
+  class C {};
+  void f(const C& i) {
+    std::cout << "1";
+  }
+}
+
+namespace y {
+  void f(const x::C& i) {
+    std::cout << "2";
+  }
+}
+
+int main() {
+  f(x::C());
+}
+```
+**`Result: 1`**
+
+# Move semantic
+## 1
+```
+int y(int &) { return 1; }
+int y(int &&) { return 2; }
+
+template <class T> int f(T &&x) { return y(x); }
+template <class T> int g(T &&x) { return y(std::move(x)); }
+template <class T> int h(T &&x) { return y(std::forward<T>(x)); }
+
+int main() {
+  int i = 10;
+  std::cout << f(i) << f(20);
+  std::cout << g(i) << g(20);
+  std::cout << h(i) << h(20);
+  return 0;
+}
+```
+**`Result: 112212`**
+
+# Mutable
+## 1
+```
+struct X {
+    X() { std::cout << "1"; }
+    X(X &) { std::cout << "2"; }
+    X(const X &) { std::cout << "3"; }
+    X(X &&) { std::cout << "4"; }
+    ~X() { std::cout << "5"; }
+};
+
+struct Y {
+    mutable X x;
+    Y() = default;
+    Y(const Y &) = default;
+};
+
+int main() {
+    Y y1;
+    Y y2 = std::move(y1);
+}
+```
+**`Result: 1255`**
+
+Y::x is mutable.
+
+# References convertion
+```
+int main() {
+    int a = '0';
+    char const &b = a;
+    //char &b = a; cannot bind non-const lvalue reference of type ‘char&’ to a value of type ‘int’
+    //char &&b = a; OK with same result
+    std::cout << b;
+    a++;
+    std::cout << b;
+}
+```
+**`Result: 00`**
+
+`b` initialized by temporary const char.
+
+# Be careful with type naming
+## 1
+```
+typedef long long ll;
+
+void foo(unsigned ll) {
+    std::cout << "1";
+}
+
+void foo(unsigned long long) {
+    std::cout << "2";
+}
+
+int main() {
+    foo(2ull);
+}
+```
+**`Result: 2`**
+
+In `foo(unsigned ll)`  `ll` is paraneter of `unsigned` type
