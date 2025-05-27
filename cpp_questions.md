@@ -113,26 +113,16 @@ int main()
 ## 3
 
 ```
-struct E
-{
-  E() { std::cout << "1"; }
-  E(const E&) { std::cout << "2"; }
-  ~E() { std::cout << "3"; }
-};
-
-E f()
-{
-  return E();
-}
-
-int main()
-{
-  f();
+int main() {
+    std::cout << std::is_const_v<const int *>
+              << std::is_const_v<const int [1]>
+              << std::is_const_v<const int **>
+              << std::is_const_v<const int (*)[1]>
+              << std::is_const_v<const int *[1]>
+              << std::is_const_v<const int [1][1]>;
 }
 ```
-**`Result: 13`**
-
-Result is not used, so no call copy constructor.
+**`Result: 010001`**
 
 # Virtual methods
 ## 1
@@ -157,6 +147,27 @@ int main() {
 **`Result: A`**
 
 `g()` accepts new temporary object of A (missed original pointer to the v-table)
+
+## 2
+```
+struct A {
+    virtual void foo (int a = 1) {
+        std::cout << "A" << a;
+    }
+};
+
+struct B : A {
+    virtual void foo (int a = 2) {
+        std::cout << "B" << a;
+    }
+};
+
+int main () {
+    A *b = new B;
+    b->foo();
+}
+```
+**`Result: B1`**
 
 # Template
 ## 1
@@ -202,6 +213,72 @@ int main() {
 }
 ```
 **`Result: 132`**
+
+## 3
+```
+struct A {};
+struct B {};
+
+template<typename T = A>
+struct X;
+
+template<>
+struct X<A> {
+    static void f() { std::cout << 1; }
+};
+
+template<>
+struct X<B> {
+    static void f() { std::cout << 2; }
+};
+
+template<template<typename T = B> class C>
+void g() {
+    C<>::f();
+}
+
+int main() {
+    g<X>();
+}
+```
+**`Result: 2`**
+
+A template-parameter of a template template-parameter is permitted to have a default template-argument. When such default arguments are specified, they apply to the template template-parameter in the scope of the template template-parameter.
+
+## 4
+```
+void f()
+{
+    std::cout << "1";
+}
+
+template<typename T>
+struct B
+{
+    void f()
+    {
+        std::cout << "2";
+    }
+};
+
+template<typename T>
+struct D : B<T>
+{
+    void g()
+    {
+        f();
+    }
+};
+
+int main()
+{
+    D<int> d;
+    d.g();
+}
+```
+**`Result: 1`**
+
+`f` in the function call `f()` is unqualified and non-dependent, so unqualified name lookup takes place when the template definition is examined, skipping the dependent base class `B` and binding the name to the global declaration of `f`.
 
 # Scope
 ## 1
@@ -271,7 +348,8 @@ int main() {
 
 Y::x is mutable.
 
-# References convertion
+# References
+## 1
 ```
 int main() {
     int a = '0';
@@ -286,6 +364,19 @@ int main() {
 **`Result: 00`**
 
 `b` initialized by temporary const char.
+
+## 2
+```
+int main() {
+    int i = 1;
+    int const& a = i > 0 ? i : 1;
+    i = 2;
+    std::cout << i << a;
+}
+```
+**`Result: 21`**
+
+Expression `i>0? i : 1` returns temporary value
 
 # Be careful with type naming
 ## 1
@@ -307,3 +398,154 @@ int main() {
 **`Result: 2`**
 
 In `foo(unsigned ll)`  `ll` is paraneter of `unsigned` type
+
+# Variant
+## 1
+```
+struct C
+{
+    C() : i(1){}
+    int i;
+};
+
+struct D
+{
+    D() : i(2){}
+    int i;
+};
+
+int main()
+{
+    const std::variant<C,D> v;
+    std::visit([](const auto& val){ std::cout << val.i; }, v);
+}
+```
+
+**`Result: 1`**
+
+`std::variants` default constructor constructs a variant holding the value-initialized value of the first alternative.
+
+# Bit-fields structures
+## 1
+```
+struct X {
+    int var1 : 3;
+    int var2;
+};
+
+int main() {
+    X x;
+    std::cout << (&x.var1 < &x.var2);
+}
+```
+**`Result: compile error`**
+
+The address-of operator & shall not be applied to a bit-field, so there are no pointers to bit-fields.
+
+# Operator=
+## 1
+```
+struct X {
+  X() { std::cout << "a"; }
+  X(const X &x) { std::cout << "b"; }
+  const X &operator=(const X &x) {
+    std::cout << "c";
+    return *this;
+  }
+};
+
+int main() {
+  X x;
+  X y(x);
+  X z = y;
+  z = x;
+}
+```
+**`Result: abbc`**
+
+# String
+## 1
+```
+void f(const std::string &) { std::cout << 1; }
+
+void f(const void *) { std::cout << 2; }
+
+int main() {
+  f("foo");
+  const char *bar = "bar";
+  f(bar);
+}
+```
+**`Result: 22`**
+
+# Temporary objects lifetime
+## 1
+```
+class C {
+public:
+  C(int i) : i(i) { std::cout << i; }
+  ~C() { std::cout << i + 5; }
+
+private:
+  int i;
+};
+
+int main() {
+  const C &c = C(1);
+  C(2);
+  C(3);
+}
+```
+**`Result: 127386`**
+
+Temporary returned from `C(2)` and `C(3)` immedatly destoryed, but `const C &c = C(1)` prolongate lifetime of `C(1)` till end of function 
+
+# Static array
+## 1
+```
+size_t get_size_1(int* arr)
+{
+  return sizeof arr;
+}
+
+size_t get_size_2(int arr[])
+{
+  return sizeof arr;
+}
+
+size_t get_size_3(int (&arr)[10])
+{
+  return sizeof arr;
+}
+
+int main()
+{
+  int array[10];
+  // Assume sizeof(int*) != sizeof(int[10])
+  std::cout << (sizeof(array) == get_size_1(array));
+  std::cout << (sizeof(array) == get_size_2(array));
+  std::cout << (sizeof(array) == get_size_3(array));
+}
+```
+**`Result: 001`**
+
+# Not obvious errors
+# 1
+```
+struct X {
+  X() { std::cout << "X"; }
+};
+
+struct Y {
+  Y(const X &x) { std::cout << "Y"; }
+  void f() { std::cout << "f"; }
+};
+
+int main() {
+  Y y(X());
+  y.f();
+}
+```
+**`Result: compile error`**
+
+`Y y(X())` intrpretted as function declaration. For avoid issue `Y y(X{})`
