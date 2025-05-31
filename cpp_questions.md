@@ -498,9 +498,35 @@ int main() {
 ```
 **`Result: 127386`**
 
-Temporary returned from `C(2)` and `C(3)` immedatly destoryed, but `const C &c = C(1)` prolongate lifetime of `C(1)` till end of function 
+Temporary returned from `C(2)` and `C(3)` immedatly destoryed, but `const C &c = C(1)` prolongate lifetime of `C(1)` till end of function
 
-# Static array
+## 2
+```
+char a[2] = "0";
+
+struct a_string {
+    a_string() { *a='1'; }
+    ~a_string() { *a='0'; }
+    const char* c_str() const { return a; }
+};
+
+void print(const char* s) { std::cout << s; }
+a_string make_string() { return a_string{}; }
+
+int main() {
+    a_string s1 = make_string();
+    print(s1.c_str());
+
+    const char* s2 = make_string().c_str();
+    print(s2);
+
+    print(make_string().c_str());
+}
+
+```
+**`Result 101`**
+
+# Pointers
 ## 1
 ```
 size_t get_size_1(int* arr)
@@ -529,6 +555,67 @@ int main()
 ```
 **`Result: 001`**
 
+## 2
+```
+void takes_pointer(int* pointer) {
+  if (typeid(pointer) == typeid(int[])) std::cout << 'a';
+  if (typeid(pointer) == typeid(int*)) std::cout << 'p';
+}
+
+void takes_array(int array[]) {
+  if (typeid(array) == typeid(int[])) std::cout << 'a';
+  if (typeid(array) == typeid(int*)) std::cout << 'p';
+}
+
+int main() {
+  int* pointer = nullptr;
+  int array[1];
+
+  takes_pointer(array);
+  takes_array(pointer);
+
+  std::cout << (typeid(int*) == typeid(int[]));
+}
+```
+**`Result pp0`**
+
+## 3
+```
+int main() {
+  std::cout << 1["ABC"];
+}
+```
+**`Result: B`**
+
+The expression E1[E2] is identical (by definition) to *((E1)+(E2)), in this case *(1 + "ABC")
+
+# Auto
+## 1
+```
+struct A {
+    A() { std::cout << "a"; }
+
+    void foo() { std::cout << "1"; }
+};
+
+struct B {
+    B() { std::cout << "b"; }
+    B(const A&) { std::cout << "B"; }
+
+    void foo() { std::cout << "2"; }
+};
+
+int main()
+{
+    auto L = [](auto flag) -> auto {return flag ? A{} : B{};};
+    L(true).foo();
+    L(false).foo();
+}
+```
+**`Result: aB2b2`**
+
+Type of `flag ? A{} : B{}` is `B`
+
 # Not obvious errors
 # 1
 ```
@@ -549,3 +636,111 @@ int main() {
 **`Result: compile error`**
 
 `Y y(X())` intrpretted as function declaration. For avoid issue `Y y(X{})`
+
+# Ecxeption
+## 1
+```
+struct GeneralException {
+  virtual void print() { std::cout << "G"; }
+};
+
+struct SpecialException : public GeneralException {
+  void print() override { std::cout << "S"; }
+};
+
+void f() { throw SpecialException(); }
+
+int main() {
+  try {
+    f();
+  }
+  catch (GeneralException e) {
+    e.print();
+  }
+}
+```
+**`Result G`**
+
+Catch `GeneralException` by value.
+
+# Copy constructor
+## 1
+```
+class A
+{
+public:
+    A() { std::cout << "A"; }
+    A(const A &) { std::cout << "a"; }
+};
+
+class B: public virtual A
+{
+public:
+    B() { std::cout << "B"; }
+    B(const B &) { std::cout << "b"; }
+};
+
+class C: public virtual A
+{
+public:
+    C() { std::cout << "C"; }
+    C(const C &) { std::cout << "c"; }
+};
+
+class D: B, C
+{
+public:
+    D() { std::cout << "D"; }
+    D(const D &) { std::cout << "d"; }
+};
+
+int main()
+{
+    D d1;
+    D d2(d1);
+}
+```
+**`Result: ABCDABCd`**
+
+Copy constractor called only for `D`, in case of user-defined copy constructor
+
+# Jump statement
+## 1
+```
+class A {
+public:
+  A() { std::cout << "a"; }
+  ~A() { std::cout << "A"; }
+};
+
+int i = 1;
+
+int main() {
+label:
+  A a;
+  if (i--)
+    goto label;
+}
+```
+**`Result: aAaA`**
+
+# Declaration variables
+## 1
+```
+struct X {
+    X() { std::cout << "1"; }
+    X(const X &) { std::cout << "3"; }
+    ~X() { std::cout << "2"; }
+
+    void f() { std::cout << "4"; }
+
+} object;
+
+int main() {
+    X(object);
+    object.f();
+}
+```
+**`Result: 11422`**
+
+The line `X(object)` interpreted as declaration of the new local variable `object` of type `X`
