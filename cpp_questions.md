@@ -124,6 +124,43 @@ int main() {
 ```
 **`Result: 010001`**
 
+## 4
+```
+class C {
+public:
+  void foo()       { std::cout << "A"; }
+  void foo() const { std::cout << "B"; }
+};
+
+struct S {
+  std::vector<C> v;
+  std::unique_ptr<C> u;
+  C *const p;
+
+  S()
+    : v(1)
+    , u(new C())
+    , p(u.get())
+  {}
+};
+
+int main() {
+  S s;
+  const S &r = s;
+
+  s.v[0].foo();
+  s.u->foo();
+  s.p->foo();
+
+  r.v[0].foo();
+  r.u->foo();
+  r.p->foo();
+}
+```
+**`Result: AAABAA`**
+
+However, `r` refers to its object as a const instance of `S`. That constness changes the behavior of its member `v`, an `std::vector` which is "const-correct" in the sense that its `operator[]` returns `const C&` and therefore invokes the const version of `C::foo()`
+
 # Virtual methods
 ## 1
 ```
@@ -280,6 +317,44 @@ int main()
 
 `f` in the function call `f()` is unqualified and non-dependent, so unqualified name lookup takes place when the template definition is examined, skipping the dependent base class `B` and binding the name to the global declaration of `f`.
 
+## 5
+```
+template<class T>
+void f(T) { std::cout << 1; }
+
+template<>
+void f<>(int*) { std::cout << 2; }
+
+template<class T>
+void f(T*) { std::cout << 3; }
+
+int main() {
+    int *p = nullptr;
+    f( p );
+}
+```
+**`Result: 3`**
+
+Fisrt defined template, then specification
+
+## 6
+```
+template<typename T>
+int f()
+{
+    if constexpr (std::is_same_v<T, int>) { return 0; }
+    else { return std::string{}; }
+}
+
+int main()
+{
+    std::cout << f<int>();
+}
+```
+**`Result: undefined behavior`**
+
+"Hypothetical instantiation of a template immediately following its definition would be ill-formed due to a construct that does not depend on a template parameter"
+
 # Scope
 ## 1
 ```
@@ -301,6 +376,28 @@ int main() {
 }
 ```
 **`Result: 1`**
+
+## 2
+```
+namespace A{
+  extern "C" int x;
+};
+
+namespace B{
+  extern "C" int x;
+};
+
+int A::x = 0;
+
+int main(){
+  std::cout << B::x;
+  A::x=1;
+  std::cout << B::x;
+}
+```
+**`Result: 01`**
+
+Due to the extern "C" specifications, `A::x` and `B::x` actually refer to the same variable
 
 # Move semantic
 ## 1
@@ -377,6 +474,44 @@ int main() {
 **`Result: 21`**
 
 Expression `i>0? i : 1` returns temporary value
+
+## 3
+```
+int main() {
+    int x = 10;
+    int y = 10;
+
+    const int &max = std::max(x, y);
+    const int &min = std::min(x, y);
+
+    x = 11;
+    y = 9;
+
+    std::cout << max << min;
+}
+```
+**`Result: 1111`**
+
+`max`, `min` returns reference, not temporary
+
+## 4
+```
+int main()
+{
+  int i, &j = i;
+  [=]
+  {
+    std::cout << std::is_same<decltype    ((j)),     int         >::value
+              << std::is_same<decltype   (((j))),    int      &  >::value
+              << std::is_same<decltype  ((((j)))),   int const&  >::value
+              << std::is_same<decltype (((((j))))),  int      && >::value
+              << std::is_same<decltype((((((j)))))), int const&& >::value;
+  }();
+}
+```
+**`Result: 00100`**
+
+decltype(T) and decltype((T)) has different meanings. The first (which we don't see in this question) is intended to find the type of a particular identifier. The other, which we see in this question, is intended to find the type of an arbitrary expression
 
 # Be careful with type naming
 ## 1
@@ -663,6 +798,58 @@ int main() {
 
 Catch `GeneralException` by value.
 
+## 2
+```
+struct S {
+    S() {
+        throw std::runtime_error("");
+    }
+    ~S() {
+        throw std::runtime_error("");
+    }
+};
+
+int main() {
+    std::cout
+        << (std::is_nothrow_constructible_v<S> ? 'y' : 'n')
+        << (std::is_nothrow_destructible_v<S> ? 'y' : 'n');
+}
+```
+**`Result: ny`**
+
+All functions without `noexcept` may throw exceptions, but destructors and deallocation functions any way `std::is_nothrow_destructible_v`
+
+## 3
+```
+struct A {
+    A(char c) : c_(c) {}
+    ~A() { std::cout << c_; }
+    char c_;
+};
+
+struct Y { ~Y() noexcept(false) { throw std::runtime_error(""); } };
+
+A f() {
+    try {
+        A a('a');
+        Y y;
+        A b('b');
+        return {'c'};
+    } catch (...) {
+    }
+    return {'d'};
+}
+
+int main()
+{
+    f();
+}
+```
+**`Result: bcad`**
+
+The returned object of type `A` is constructed. Then, the local variable `b` is destroyed. Next, the local variable `y` is destroyed, causing stack unwinding, resulting in the destruction of the returned object, followed by the destruction of the local variable `a`. Finally, the returned object is constructed again at `return {'b'}`
+It is worth noting that at the time of writing, neither GCC, Clang nor MSVC conform to the behaviour described in the standard, and instead print `bacd`, `bad` and `bad`s, respectively.
+
 # Copy constructor
 ## 1
 ```
@@ -744,3 +931,16 @@ int main() {
 **`Result: 11422`**
 
 The line `X(object)` interpreted as declaration of the new local variable `object` of type `X`
+
+# Operator ordering
+## 1
+```
+int main() {
+  int i = 1, j = 1, k = 1;
+  std::cout << ++i || ++j && ++k;
+  std::cout << i << j << k;
+}
+```
+**`Result: 2211`**
+
+`(cout << ++i) || (++j && ++k)`, `(++j && ++k)` was not evaluated due to `cout << ++i` not 0
