@@ -536,12 +536,733 @@ void ClientCode(const Subject &subject) {
 ```
 # Behavior
 ## Chain of responsibility
+Pass requests along a chain of handlers. Upon receiving a request, each handler decides either to process the request or to pass it to the next handler in the chain.
+```
+class Handler {
+ public:
+  virtual Handler *SetNext(Handler *handler) = 0;
+  virtual std::string Handle(std::string request) = 0;
+};
+
+class AbstractHandler : public Handler {
+ private:
+  Handler *next_handler_;
+
+ public:
+  AbstractHandler() : next_handler_(nullptr) {
+  }
+  Handler *SetNext(Handler *handler) override {
+    this->next_handler_ = handler;
+    return handler;
+  }
+  std::string Handle(std::string request) override {
+    if (this->next_handler_) {
+      return this->next_handler_->Handle(request);
+    }
+
+    return {};
+  }
+};
+
+class MonkeyHandler : public AbstractHandler {
+ public:
+  std::string Handle(std::string request) override {
+    if (request == "Banana") {
+      return "Monkey: I'll eat the " + request + ".\n";
+    } else {
+      return AbstractHandler::Handle(request);
+    }
+  }
+};
+class SquirrelHandler : public AbstractHandler {
+ public:
+  std::string Handle(std::string request) override {
+    if (request == "Nut") {
+      return "Squirrel: I'll eat the " + request + ".\n";
+    } else {
+      return AbstractHandler::Handle(request);
+    }
+  }
+};
+class DogHandler : public AbstractHandler {
+ public:
+  std::string Handle(std::string request) override {
+    if (request == "MeatBall") {
+      return "Dog: I'll eat the " + request + ".\n";
+    } else {
+      return AbstractHandler::Handle(request);
+    }
+  }
+};
+
+void ClientCode(Handler &handler) {
+  std::vector<std::string> food = {"Nut", "Banana", "Cup of coffee"};
+  for (const std::string &f : food) {
+    std::cout << "Client: Who wants a " << f << "?\n";
+    const std::string result = handler.Handle(f);
+    if (!result.empty()) {
+      std::cout << "  " << result;
+    } else {
+      std::cout << "  " << f << " was left untouched.\n";
+    }
+  }
+}
+```
 ## Command
+Turns a request into a stand-alone object that contains all information about the request. This transformation lets you pass requests as a method arguments, delay or queue a request’s execution, and support undoable operations.
+```
+class Command {
+ public:
+  virtual ~Command() {
+  }
+  virtual void Execute() const = 0;
+};
+
+class SimpleCommand : public Command {
+ private:
+  std::string pay_load_;
+
+ public:
+  explicit SimpleCommand(std::string pay_load) : pay_load_(pay_load) {
+  }
+  void Execute() const override {
+    std::cout << "SimpleCommand: See, I can do simple things like printing (" << this->pay_load_ << ")\n";
+  }
+};
+
+class Receiver {
+ public:
+  void DoSomething(const std::string &a) {
+    std::cout << "Receiver: Working on (" << a << ".)\n";
+  }
+  void DoSomethingElse(const std::string &b) {
+    std::cout << "Receiver: Also working on (" << b << ".)\n";
+  }
+};
+
+class ComplexCommand : public Command {
+ private:
+  Receiver *receiver_;
+  std::string a_;
+  std::string b_;
+ public:
+  ComplexCommand(Receiver *receiver, std::string a, std::string b) : receiver_(receiver), a_(a), b_(b) {
+  }
+  void Execute() const override {
+    std::cout << "ComplexCommand: Complex stuff should be done by a receiver object.\n";
+    this->receiver_->DoSomething(this->a_);
+    this->receiver_->DoSomethingElse(this->b_);
+  }
+};
+
+class Invoker {
+ private:
+  Command *on_start_;
+  Command *on_finish_;
+ public:
+  ~Invoker() {
+    delete on_start_;
+    delete on_finish_;
+  }
+
+  void SetOnStart(Command *command) {
+    this->on_start_ = command;
+  }
+  void SetOnFinish(Command *command) {
+    this->on_finish_ = command;
+  }
+  void DoSomethingImportant() {
+    std::cout << "Invoker: Does anybody want something done before I begin?\n";
+    if (this->on_start_) {
+      this->on_start_->Execute();
+    }
+    std::cout << "Invoker: ...doing something really important...\n";
+    std::cout << "Invoker: Does anybody want something done after I finish?\n";
+    if (this->on_finish_) {
+      this->on_finish_->Execute();
+    }
+  }
+};
+```
 ## Iterator
+Traverse elements of a collection without exposing its underlying representation.
+```
+template <typename T, typename U>
+class Iterator {
+ public:
+  typedef typename std::vector<T>::iterator iter_type;
+  Iterator(U *p_data, bool reverse = false) : m_p_data_(p_data) {
+    m_it_ = m_p_data_->m_data_.begin();
+  }
+
+  void First() {
+    m_it_ = m_p_data_->m_data_.begin();
+  }
+
+  void Next() {
+    m_it_++;
+  }
+
+  bool IsDone() {
+    return (m_it_ == m_p_data_->m_data_.end());
+  }
+
+  iter_type Current() {
+    return m_it_;
+  }
+
+ private:
+  U *m_p_data_;
+  iter_type m_it_;
+};
+
+template <class T>
+class Container {
+  friend class Iterator<T, Container>;
+
+ public:
+  void Add(T a) {
+    m_data_.push_back(a);
+  }
+
+  Iterator<T, Container> *CreateIterator() {
+    return new Iterator<T, Container>(this);
+  }
+
+ private:
+  std::vector<T> m_data_;
+};
+
+class Data {
+ public:
+  Data(int a = 0) : m_data_(a) {}
+
+  void set_data(int a) {
+    m_data_ = a;
+  }
+
+  int data() {
+    return m_data_;
+  }
+
+ private:
+  int m_data_;
+};
+
+void ClientCode() {
+  std::cout << "________________Iterator with int______________________________________" << std::endl;
+  Container<int> cont;
+
+  for (int i = 0; i < 10; i++) {
+    cont.Add(i);
+  }
+
+  Iterator<int, Container<int>> *it = cont.CreateIterator();
+  for (it->First(); !it->IsDone(); it->Next()) {
+    std::cout << *it->Current() << std::endl;
+  }
+
+  Container<Data> cont2;
+  Data a(100), b(1000), c(10000);
+  cont2.Add(a);
+  cont2.Add(b);
+  cont2.Add(c);
+
+  std::cout << "________________Iterator with custom Class______________________________" << std::endl;
+  Iterator<Data, Container<Data>> *it2 = cont2.CreateIterator();
+  for (it2->First(); !it2->IsDone(); it2->Next()) {
+    std::cout << it2->Current()->data() << std::endl;
+  }
+  delete it;
+  delete it2;
+}
+```
 ## Mediator
+The pattern restricts direct communications between the objects and forces them to collaborate only via a mediator object.
+To avoid complex dependencies between objects.
+```
+class BaseComponent;
+class Mediator {
+ public:
+  virtual void Notify(BaseComponent *sender, std::string event) const = 0;
+};
+
+class BaseComponent {
+ protected:
+  Mediator *mediator_;
+
+ public:
+  BaseComponent(Mediator *mediator = nullptr) : mediator_(mediator) {
+  }
+  void set_mediator(Mediator *mediator) {
+    this->mediator_ = mediator;
+  }
+};
+
+class Component1 : public BaseComponent {
+ public:
+  void DoA() {
+    std::cout << "Component 1 does A.\n";
+    this->mediator_->Notify(this, "A");
+  }
+  void DoB() {
+    std::cout << "Component 1 does B.\n";
+    this->mediator_->Notify(this, "B");
+  }
+};
+
+class Component2 : public BaseComponent {
+ public:
+  void DoC() {
+    std::cout << "Component 2 does C.\n";
+    this->mediator_->Notify(this, "C");
+  }
+  void DoD() {
+    std::cout << "Component 2 does D.\n";
+    this->mediator_->Notify(this, "D");
+  }
+};
+
+class ConcreteMediator : public Mediator {
+ private:
+  Component1 *component1_;
+  Component2 *component2_;
+
+ public:
+  ConcreteMediator(Component1 *c1, Component2 *c2) : component1_(c1), component2_(c2) {
+    this->component1_->set_mediator(this);
+    this->component2_->set_mediator(this);
+  }
+  void Notify(BaseComponent *sender, std::string event) const override {
+    if (event == "A") {
+      std::cout << "Mediator reacts on A and triggers following operations:\n";
+      this->component2_->DoC();
+    }
+    if (event == "D") {
+      std::cout << "Mediator reacts on D and triggers following operations:\n";
+      this->component1_->DoB();
+      this->component2_->DoC();
+    }
+  }
+};
+
+void ClientCode() {
+  Component1 *c1 = new Component1;
+  Component2 *c2 = new Component2;
+  ConcreteMediator *mediator = new ConcreteMediator(c1, c2);
+  std::cout << "Client triggers operation A.\n";
+  c1->DoA();
+  std::cout << "\n";
+  std::cout << "Client triggers operation D.\n";
+  c2->DoD();
+
+  delete c1;
+  delete c2;
+  delete mediator;
+}
+```
 ## Memento
+Save and restore the previous state of an object without revealing the details of its implementation.
+```
+class Memento {
+ public:
+  virtual ~Memento() {}
+  virtual std::string GetName() const = 0;
+  virtual std::string date() const = 0;
+  virtual std::string state() const = 0;
+};
+
+class ConcreteMemento : public Memento {
+ private:
+  std::string state_;
+  std::string date_;
+
+ public:
+  ConcreteMemento(std::string state) : state_(state) {
+    this->state_ = state;
+    std::time_t now = std::time(0);
+    this->date_ = std::ctime(&now);
+  }
+  std::string state() const override {
+    return this->state_;
+  }
+  std::string GetName() const override {
+    return this->date_ + " / (" + this->state_.substr(0, 9) + "...)";
+  }
+  std::string date() const override {
+    return this->date_;
+  }
+};
+
+class Originator {
+ private:
+  std::string state_;
+
+  std::string GenerateRandomString(int length = 10) {
+    const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+    int stringLength = sizeof(alphanum) - 1;
+
+    std::string random_string;
+    for (int i = 0; i < length; i++) {
+      random_string += alphanum[std::rand() % stringLength];
+    }
+    return random_string;
+  }
+
+ public:
+  Originator(std::string state) : state_(state) {
+    std::cout << "Originator: My initial state is: " << this->state_ << "\n";
+  }
+  void DoSomething() {
+    std::cout << "Originator: I'm doing something important.\n";
+    this->state_ = this->GenerateRandomString(30);
+    std::cout << "Originator: and my state has changed to: " << this->state_ << "\n";
+  }
+
+  Memento *Save() {
+    return new ConcreteMemento(this->state_);
+  }
+
+  void Restore(Memento *memento) {
+    this->state_ = memento->state();
+    std::cout << "Originator: My state has changed to: " << this->state_ << "\n";
+    delete memento;
+  }
+};
+
+class Caretaker {
+ private:
+  std::vector<Memento *> mementos_;
+
+  Originator *originator_;
+
+ public:
+     Caretaker(Originator* originator) : originator_(originator) {
+     }
+
+     ~Caretaker() {
+         for (auto m : mementos_) delete m;
+     }
+
+  void Backup() {
+    std::cout << "\nCaretaker: Saving Originator's state...\n";
+    this->mementos_.push_back(this->originator_->Save());
+  }
+  void Undo() {
+    if (!this->mementos_.size()) {
+      return;
+    }
+    Memento *memento = this->mementos_.back();
+    this->mementos_.pop_back();
+    std::cout << "Caretaker: Restoring state to: " << memento->GetName() << "\n";
+    try {
+      this->originator_->Restore(memento);
+    } catch (...) {
+      this->Undo();
+    }
+  }
+  void ShowHistory() const {
+    std::cout << "Caretaker: Here's the list of mementos:\n";
+    for (Memento *memento : this->mementos_) {
+      std::cout << memento->GetName() << "\n";
+    }
+  }
+};
+
+void ClientCode() {
+  Originator *originator = new Originator("Super-duper-super-puper-super.");
+  Caretaker *caretaker = new Caretaker(originator);
+  caretaker->Backup();
+  originator->DoSomething();
+  caretaker->Backup();
+  originator->DoSomething();
+  caretaker->Backup();
+  originator->DoSomething();
+  std::cout << "\n";
+  caretaker->ShowHistory();
+  std::cout << "\nClient: Now, let's rollback!\n\n";
+  caretaker->Undo();
+  std::cout << "\nClient: Once more!\n\n";
+  caretaker->Undo();
+
+  delete originator;
+  delete caretaker;
+}
+```
 ## Observer
+Used for enable subscription mechanism to notify multiple objects about any events that happen to the object they’re observing.
+```
+class IObserver {
+ public:
+  virtual ~IObserver(){};
+  virtual void Update(const std::string &message_from_subject) = 0;
+};
+
+class ISubject {
+ public:
+  virtual ~ISubject(){};
+  virtual void Attach(IObserver *observer) = 0;
+  virtual void Detach(IObserver *observer) = 0;
+  virtual void Notify() = 0;
+};
+
+class Subject : public ISubject {
+ public:
+  virtual ~Subject() {
+    std::cout << "Goodbye, I was the Subject.\n";
+  }
+
+  void Attach(IObserver *observer) override {
+    list_observer_.push_back(observer);
+  }
+  void Detach(IObserver *observer) override {
+    list_observer_.remove(observer);
+  }
+  void Notify() override {
+    std::list<IObserver *>::iterator iterator = list_observer_.begin();
+    HowManyObserver();
+    while (iterator != list_observer_.end()) {
+      (*iterator)->Update(message_);
+      ++iterator;
+    }
+  }
+
+  void CreateMessage(std::string message = "Empty") {
+    this->message_ = message;
+    Notify();
+  }
+  void HowManyObserver() {
+    std::cout << "There are " << list_observer_.size() << " observers in the list.\n";
+  }
+
+  void SomeBusinessLogic() {
+    this->message_ = "change message message";
+    Notify();
+    std::cout << "I'm about to do some thing important\n";
+  }
+
+ private:
+  std::list<IObserver *> list_observer_;
+  std::string message_;
+};
+
+class Observer : public IObserver {
+ public:
+  Observer(Subject &subject) : subject_(subject) {
+    this->subject_.Attach(this);
+    std::cout << "Hi, I'm the Observer \"" << ++Observer::static_number_ << "\".\n";
+    this->number_ = Observer::static_number_;
+  }
+  virtual ~Observer() {
+    std::cout << "Goodbye, I was the Observer \"" << this->number_ << "\".\n";
+  }
+
+  void Update(const std::string &message_from_subject) override {
+    message_from_subject_ = message_from_subject;
+    PrintInfo();
+  }
+  void RemoveMeFromTheList() {
+    subject_.Detach(this);
+    std::cout << "Observer \"" << number_ << "\" removed from the list.\n";
+  }
+  void PrintInfo() {
+    std::cout << "Observer \"" << this->number_ << "\": a new message is available --> " << this->message_from_subject_ << "\n";
+  }
+
+ private:
+  std::string message_from_subject_;
+  Subject &subject_;
+  static int static_number_;
+  int number_;
+};
+
+int Observer::static_number_ = 0;
+
+void ClientCode() {
+  Subject *subject = new Subject;
+  Observer *observer1 = new Observer(*subject);
+  Observer *observer2 = new Observer(*subject);
+  Observer *observer3 = new Observer(*subject);
+  Observer *observer4;
+  Observer *observer5;
+
+  subject->CreateMessage("Hello World! :D");
+  observer3->RemoveMeFromTheList();
+
+  subject->CreateMessage("The weather is hot today! :p");
+  observer4 = new Observer(*subject);
+
+  observer2->RemoveMeFromTheList();
+  observer5 = new Observer(*subject);
+
+  subject->CreateMessage("My new car is great! ;)");
+  observer5->RemoveMeFromTheList();
+
+  observer4->RemoveMeFromTheList();
+  observer1->RemoveMeFromTheList();
+
+  delete observer5;
+  delete observer4;
+  delete observer3;
+  delete observer2;
+  delete observer1;
+  delete subject;
+}
+```
 ## State
+Lets an object alter its behavior when its internal state changes. It appears as if the object changed its class.
+```
+class Context;
+
+class State {
+ protected:
+  Context *context_;
+
+ public:
+  virtual ~State() {
+  }
+
+  void set_context(Context *context) {
+    this->context_ = context;
+  }
+
+  virtual void Handle1() = 0;
+  virtual void Handle2() = 0;
+};
+
+class Context {
+ private:
+  State *state_;
+
+ public:
+  Context(State *state) : state_(nullptr) {
+    this->TransitionTo(state);
+  }
+  ~Context() {
+    delete state_;
+  }
+  void TransitionTo(State *state) {
+    std::cout << "Context: Transition to " << typeid(*state).name() << ".\n";
+    if (this->state_ != nullptr)
+      delete this->state_;
+    this->state_ = state;
+    this->state_->set_context(this);
+  }
+
+  void Request1() {
+    this->state_->Handle1();
+  }
+  void Request2() {
+    this->state_->Handle2();
+  }
+};
+
+class ConcreteStateA : public State {
+ public:
+  void Handle1() override;
+
+  void Handle2() override {
+    std::cout << "ConcreteStateA handles request2.\n";
+  }
+};
+
+class ConcreteStateB : public State {
+ public:
+  void Handle1() override {
+    std::cout << "ConcreteStateB handles request1.\n";
+  }
+  void Handle2() override {
+    std::cout << "ConcreteStateB handles request2.\n";
+    std::cout << "ConcreteStateB wants to change the state of the context.\n";
+    this->context_->TransitionTo(new ConcreteStateA);
+  }
+};
+
+void ConcreteStateA::Handle1() {
+  {
+    std::cout << "ConcreteStateA handles request1.\n";
+    std::cout << "ConcreteStateA wants to change the state of the context.\n";
+
+    this->context_->TransitionTo(new ConcreteStateB);
+  }
+}
+
+void ClientCode() {
+  Context *context = new Context(new ConcreteStateA);
+  context->Request1();
+  context->Request2();
+  delete context;
+}
+```
 ## Strategy
+Defines a family of algorithms, put each of them into a separate class, and make their objects interchangeable.
+```
+class Strategy
+{
+public:
+    virtual ~Strategy() = default;
+    virtual std::string doAlgorithm(std::string_view data) const = 0;
+};
+
+class Context
+{
+private:
+    std::unique_ptr<Strategy> strategy_;
+public:
+    explicit Context(std::unique_ptr<Strategy> &&strategy = {}) : strategy_(std::move(strategy))
+    {
+    }
+    void set_strategy(std::unique_ptr<Strategy> &&strategy)
+    {
+        strategy_ = std::move(strategy);
+    }
+    void doSomeBusinessLogic() const
+    {
+        if (strategy_) {
+            std::cout << "Context: Sorting data using the strategy (not sure how it'll do it)\n";
+            std::string result = strategy_->doAlgorithm("aecbd");
+            std::cout << result << "\n";
+        } else {
+            std::cout << "Context: Strategy isn't set\n";
+        }
+    }
+};
+
+class ConcreteStrategyA : public Strategy
+{
+public:
+    std::string doAlgorithm(std::string_view data) const override
+    {
+        std::string result(data);
+        std::sort(std::begin(result), std::end(result));
+
+        return result;
+    }
+};
+class ConcreteStrategyB : public Strategy
+{
+    std::string doAlgorithm(std::string_view data) const override
+    {
+        std::string result(data);
+        std::sort(std::begin(result), std::end(result), std::greater<>());
+
+        return result;
+    }
+};
+
+void clientCode()
+{
+    Context context(std::make_unique<ConcreteStrategyA>());
+    std::cout << "Client: Strategy is set to normal sorting.\n";
+    context.doSomeBusinessLogic();
+    std::cout << "\n";
+    std::cout << "Client: Strategy is set to reverse sorting.\n";
+    context.set_strategy(std::make_unique<ConcreteStrategyB>());
+    context.doSomeBusinessLogic();
+}
+```
 ## Template method
 ## Visitor
